@@ -42,6 +42,7 @@ struct command_stream
 bool isWord(char ch);
 bool isSpecial(char ch);
 bool isInvalid(char ch);
+char the_next_non_space_tab_char(const char *s, int *p);
 
 char* find_next_word(char *s, int *p, const int size);
 void ignore_comment(char *s, int *p, const int size);
@@ -75,6 +76,16 @@ bool isInvalid(char ch)
     return !isWord(ch) && !isSpecial(ch) && ch!='\n' && ch!=' ' && ch!='#';
 }
 
+// Return the next first non-space non-tab char
+// Usually use this function to check if a special token starts at the beginning of a line
+char the_next_non_space_tab_char(const char *s, int *p){
+	int * copyed_p = p;
+	do{
+		(*copyed_p)++;
+	}while(s[*copyed_p] == ' ' || s[*copyed_p] == '\t');
+	
+	return s[*copyed_p];
+}
 
 // Get the next string of characters
 char* find_next_word(char *s, int *p, const int size)
@@ -133,7 +144,7 @@ void ignore_comment(char *s, int *p, const int size)//Kexin
     //find the next new line
     for(;*p<size; (*p)++){
         if(s[*p] == '\n'){
-            line_num++;
+            line_num++; //printf("line %d\n ignore_comment", line_num);
             return;
         }
     }
@@ -177,33 +188,49 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
 			{
 				if(left)
 				{
-					line_num++;
+					line_num++; //printf("line %d in newline !sub_shell left\n", line_num);
 					break;
 				}
 				else 
 				{
-					line_num++;
+					line_num++; //printf("line %d newline !sub_shell else\n", line_num);
 					continue;
 				}
 			}
 			else if( next_char == '\n' && sub_shell){
-				line_num++;
+				line_num++; //printf("line %d newline sub_shell\n", line_num);
 				continue;
 			}
-			else if(next_char == '(' || next_char == ')' || next_char == ' ' || next_char == '\t' || next_char == '#')
+			else if(next_char == '(' || next_char == ')' || next_char == '#')
 			{
-				line_num++;
+				line_num++; //printf("line %d ()#\n", line_num);
 				continue;
 			}
 			else if(isWord(next_char) && left)
 			{
 				(*p) += 1;
-				line_num++;
+				line_num++; //printf("line %d isWord left\n", line_num);
 				left = create_special_command(s, p, size, SEQUENCE_COMMAND, left, sub_shell);
 			}
+			else if (isWord(next_char) && !left)
+			{
+				line_num++; //printf("line %d isWord !left", line_num);
+				continue;
+			}
             else{
-				fprintf(stderr, "Line %d: New line cannot appear before %c.\n", line_num, next_char);
-				exit(1);
+				char next_first_nonspacetab_char = the_next_non_space_tab_char(s, p);
+				if(next_first_nonspacetab_char == ';' || next_first_nonspacetab_char == '|' 
+					|| next_first_nonspacetab_char == '&' || next_first_nonspacetab_char == '<' || next_first_nonspacetab_char == '>' )
+				{
+					fprintf(stderr, "Line %d: New line cannot appear before %c\n", line_num, next_first_nonspacetab_char);
+					exit(1);
+				}
+				else
+				{
+					line_num++; //printf("line %d else else \n", line_num);
+					continue;
+				}
+				
             }
         }
         //simple command
@@ -311,6 +338,56 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
             left->u.subshell_command = initiate_command_tree(s, p, size, true);
         }
         else if(current_char==')'){
+
+			char next_char = s[*p+1];
+			
+			if (next_char == ' ') {
+				while (next_char == ' ') {
+					(*p) += 1;
+					next_char = s[*p + 1];
+				}
+
+				(*p) += 1;
+				current_char = s[*p];
+
+				if (sub_shell) {
+					if (current_char == '<')
+					{
+						if (left->input) {
+							fprintf(stderr, "Line %d: Already exist an I/O input.\n", line_num);
+							exit(1);
+						}
+						(*p)++;
+						left->input = find_next_word(s, p, size);
+						// Check if successfully find the next word
+						if (left->input == NULL) {
+							fprintf(stderr, "Line %d: No where to input.\n", line_num);
+							exit(1);
+						}
+					}
+					else if (current_char == '>') {
+						if (left->output) {
+							fprintf(stderr, "Line %d: Already exist an I/O output.\n", line_num);
+							exit(1);
+						}
+						(*p)++;
+						left->output = find_next_word(s, p, size);
+						if (left->output == NULL)
+						{
+							fprintf(stderr, "Line %d: No where to output.\n", line_num);
+							exit(1);
+						}
+					}
+
+				}
+				else {
+					fprintf(stderr, "Line %d: Invalid expression '%c'.\n", line_num, current_char);
+					exit(1);
+				}
+			}
+
+
+
 			if(sub_shell){
 				operatorStack -= 1;;
 				if(operatorStack==0)
@@ -420,7 +497,7 @@ command_t create_simple_command(char *s, int *p, const int size)
         }
         else if( current_char == '\n')
         {
-			line_num++;
+			line_num++; //printf("line %d", line_num);
             (*p)++;
             break;
         }
@@ -464,7 +541,7 @@ command_t create_special_command(char *s, int *p, const int size, enum command_t
             
         }//newline
         else if(current_char=='\n'&&(*p)!=size-1){
-            line_num++;
+            line_num++; //printf("line %d", line_num);
             continue;
         }
         //complete the right command branch
@@ -543,7 +620,7 @@ make_command_stream (int (*get_next_byte) (void *),
     
     int i;
     int size = (int) checked;
-    line_num = 1;
+    line_num = 0;
 	operatorStack = 0;
     
     for(i = 0; i < size; i++){
