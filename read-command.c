@@ -79,12 +79,18 @@ bool isInvalid(char ch)
 // Return the next first non-space non-tab char
 // Usually use this function to check if a special token starts at the beginning of a line
 char the_next_non_space_tab_char(const char *s, int *p){
-	int * copyed_p = p;
+	//int * copyed_p = p;
+	char the_found_char;
 	do{
-		(*copyed_p)++;
-	}while(s[*copyed_p] == ' ' || s[*copyed_p] == '\t');
+		(*p)++;
+	}while(s[*p] == ' ' || s[*p] == '\t');
 	
-	return s[*copyed_p];
+	the_found_char = s[*p];
+
+	// make *p point to the last ' ' or '\t' before the found char
+	(*p)--;
+
+	return the_found_char;
 }
 
 // Get the next string of characters
@@ -144,7 +150,7 @@ void ignore_comment(char *s, int *p, const int size)//Kexin
     //find the next new line
     for(;*p<size; (*p)++){
         if(s[*p] == '\n'){
-            line_num++; //printf("line %d\n ignore_comment", line_num);
+            line_num++; //printf("line %d\n ignore_comment", line_num-1);
             return;
         }
     }
@@ -188,49 +194,52 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
 			{
 				if(left)
 				{
-					line_num++; //printf("line %d in newline !sub_shell left\n", line_num);
+					line_num++; //printf("line %d in newline !sub_shell left\n", line_num-1);
 					break;
 				}
 				else 
 				{
-					line_num++; //printf("line %d newline !sub_shell else\n", line_num);
+					line_num++; //printf("line %d newline !sub_shell else\n", line_num-1);
 					continue;
 				}
 			}
 			else if( next_char == '\n' && sub_shell){
-				line_num++; //printf("line %d newline sub_shell\n", line_num);
+				line_num++; //printf("line %d newline sub_shell\n", line_num-1);
 				continue;
 			}
 			else if(next_char == '(' || next_char == ')' || next_char == '#')
 			{
-				line_num++; //printf("line %d ()#\n", line_num);
+				line_num++; //printf("line %d ()#\n", line_num-1);
 				continue;
+			}
+			else if(next_char == ';' || next_char == '|' || next_char == '&' ||
+					next_char == '<' ||next_char == '>' )
+			{
+				line_num++; //printf("line %d next char is illegal\n", line_num-1);
+				fprintf(stderr, "Line %d: New line cannot appear before %c\n", line_num, next_char);
+				exit(1);
 			}
 			else if(isWord(next_char) && left)
 			{
 				(*p) += 1;
-				line_num++; //printf("line %d isWord left\n", line_num);
+				line_num++; //printf("line %d isWord left\n", line_num-1);
 				left = create_special_command(s, p, size, SEQUENCE_COMMAND, left, sub_shell);
 			}
 			else if (isWord(next_char) && !left)
 			{
-				line_num++; //printf("line %d isWord !left", line_num);
+				line_num++; //printf("line %d isWord !left", line_num-1);
 				continue;
 			}
-            else{
-				char next_first_nonspacetab_char = the_next_non_space_tab_char(s, p);
-				if(next_first_nonspacetab_char == ';' || next_first_nonspacetab_char == '|' 
-					|| next_first_nonspacetab_char == '&' || next_first_nonspacetab_char == '<' || next_first_nonspacetab_char == '>' )
-				{
-					fprintf(stderr, "Line %d: New line cannot appear before %c\n", line_num, next_first_nonspacetab_char);
-					exit(1);
-				}
-				else
-				{
-					line_num++; //printf("line %d else else \n", line_num);
-					continue;
-				}
+            else{	// next_char is ' ' or '\t'
 				
+				line_num++; //printf("line %d next char is a space or tab\n", line_num-1);
+				(*p)++;
+				if(left)
+				{
+					left=create_special_command(s, p, size, SEQUENCE_COMMAND, left, sub_shell);
+				}
+				else	
+					continue;
             }
         }
         //simple command
@@ -245,27 +254,27 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
 			if(current_char == '<')
 			{
 				if (left->input){
-					fprintf(stderr, "Line %d: Already exist an I/O input.\n", line_num);
+					fprintf(stderr, "Line %d: Already exist an I/O input.\n", line_num-1);
 					exit(1);
 				}
 				(*p)++;
 				left->input = find_next_word(s, p, size);
 				// Check if successfully find the next word
 				if (left->input == NULL){
-					fprintf(stderr, "Line %d: No where to input.\n", line_num);
+					fprintf(stderr, "Line %d: No where to input.\n", line_num-1);
 					exit(1);
 				}
 			}
 			else if (current_char == '>'){
 				if (left->output){
-					fprintf(stderr, "Line %d: Already exist an I/O output.\n", line_num);
+					fprintf(stderr, "Line %d: Already exist an I/O output.\n", line_num-1);
 					exit(1);
 				}
 				(*p)++;
 				left->output = find_next_word(s, p, size);
 				if (left->output == NULL)
 				{
-					fprintf(stderr, "Line %d: No where to output.\n", line_num);
+					fprintf(stderr, "Line %d: No where to output.\n", line_num-1);
 					exit(1);
 				}
 			}
@@ -279,7 +288,7 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
         else if(current_char==';'){
             //no command found before the semicolon
             if(left==NULL){
-                fprintf(stderr,"Line %d: ';' should not come alone.\n", line_num);
+                fprintf(stderr,"Line %d: ';' should not come alone.\n", line_num-1);
                 exit(1);
             }
             //handle sequence command in a subshell
@@ -497,7 +506,7 @@ command_t create_simple_command(char *s, int *p, const int size)
         }
         else if( current_char == '\n')
         {
-			line_num++; //printf("line %d", line_num);
+			//line_num++; //printf("line %d in simple command \n", line_num-1);
             (*p)++;
             break;
         }
@@ -541,7 +550,7 @@ command_t create_special_command(char *s, int *p, const int size, enum command_t
             
         }//newline
         else if(current_char=='\n'&&(*p)!=size-1){
-            line_num++; //printf("line %d", line_num);
+            line_num++; //printf("line %d in special command\n", line_num-1);
             continue;
         }
         //complete the right command branch
@@ -570,7 +579,7 @@ command_t create_special_command(char *s, int *p, const int size, enum command_t
             return cmd;
         }
 		else if (current_char == ';' || current_char == '|' || current_char == '&' || current_char == ')') {
-			fprintf(stderr, "Line %d: Invalid character '%c' following the special command.\n", line_num,current_char);
+			fprintf(stderr, "Line %d: Invalid character nearby '%c' \n", line_num, current_char);
 			exit(1);
 			//added skip comment
 		}
@@ -620,7 +629,7 @@ make_command_stream (int (*get_next_byte) (void *),
     
     int i;
     int size = (int) checked;
-    line_num = 0;
+    line_num = 1;
 	operatorStack = 0;
     
     for(i = 0; i < size; i++){
