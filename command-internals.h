@@ -1,5 +1,9 @@
 // UCLA CS 111 Lab 1 command internals
 
+
+
+
+
 enum command_type
 {
     AND_COMMAND,         // A && B
@@ -13,6 +17,17 @@ enum command_type
 void* allocate_address[1000000];
 int total_allocated;
 
+
+// EXIST 0, READ 1, WRITE 2
+struct dependency{
+    int input;
+    int output;
+};
+
+struct dependency ** dependency_list;
+int num_tree; // number of tree == number of cmd, each tree contains one cmd
+char ** file_list;
+int num_file;
 
 
 // Data associated with a command.
@@ -45,4 +60,3 @@ struct command_tree
     struct command* cmd;
     struct command_tree* next;
 };
-
