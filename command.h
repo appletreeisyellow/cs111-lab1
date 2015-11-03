@@ -12,6 +12,8 @@ typedef struct command_tree *command_tree_t;
  (setting errno) on failure.  */
 command_stream_t make_command_stream (int (*getbyte) (void *), void *arg);
 
+command_tree_t get_head(command_stream_t s);
+
 /* Read a command from STREAM; return it, or NULL on EOF.  If there is
  an error, report the error and exit instead of returning.  */
 command_t read_command_stream (command_stream_t stream);
