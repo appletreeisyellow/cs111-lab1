@@ -10,6 +10,9 @@
 #include <string.h>//strcmp
 #include <ctype.h>//isalpha, isdigit
 
+#define EXIST 0
+#define READ  1
+#define WRITE 2
 
 ///////////////////////////////////////////////////////////////////////////
 // Global Variables
@@ -24,6 +27,12 @@ extern int total_allocated;
 //keep track of '('
 int operatorStack;
 
+// Parallelism
+extern struct dependency ** dependency_list;
+extern int num_tree; // number of tree == number of cmd, each tree contains one cmd
+extern char ** file_list;
+extern int num_file;
+	
 
 ///////////////////////////////////////////////////////////////////////////
 // Structure Declaration
@@ -43,6 +52,7 @@ bool isWord(char ch);
 bool isSpecial(char ch);
 bool isInvalid(char ch);
 char the_next_non_space_tab_char(const char *s, int *p);
+int file_index(char** list, char* file_to_find);
 
 char* find_next_word(char *s, int *p, const int size);
 void ignore_comment(char *s, int *p, const int size);
@@ -92,6 +102,17 @@ char the_next_non_space_tab_char(const char *s, int *p){
 
 	return the_found_char;
 }
+
+int file_index(char** list, char* file_to_find){
+	int i;
+	for(i=0; i < num_file; i++){
+		if(strcmp(list[i], file_to_find) == 0)
+			return i;
+	}
+	
+	return -1; // The file is not in the list
+}
+
 
 // Get the next string of characters
 char* find_next_word(char *s, int *p, const int size)
@@ -164,6 +185,7 @@ command_stream_t init_command_stream()
 	total_allocated++;
 	new_cmd_strm->head = NULL;
     new_cmd_strm->tail = NULL;
+	dependency_list = (struct dependency**) checked_realloc(dependency_list, sizeof(struct dependency*));
     return new_cmd_strm;
 }
 
@@ -213,7 +235,7 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
 				continue;
 			}
 			else if(next_char == ';' || next_char == '|' || next_char == '&' ||
-					next_char == '<' ||next_char == '>' )
+					next_char == '<' || next_char == '>' )
 			{
 				line_num++; //printf("line %d next char is illegal\n", line_num-1);
 				fprintf(stderr, "Line %d: New line cannot appear before %c\n", line_num, next_char);
@@ -413,7 +435,8 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
             ignore_comment(s, p, size);
         }
     }//end of for loop
-    
+	
+	
 	//unmatched '('
 	if (operatorStack>0) {
 		fprintf(stderr, "Line %d: Unmatched '(' character.\n", line_num);
@@ -462,14 +485,13 @@ command_t create_simple_command(char *s, int *p, const int size)
         if( isWord(current_char) )
         {
             char *word = find_next_word(s, p, size);// May have error here
-            if( array_index == array_size)
-            {
+            if( array_index == array_size){
                 array_size *= 2;
                 cmd->u.word = checked_realloc( cmd->u.word, sizeof(char*) * array_size);
             }
-            
             cmd->u.word[array_index++] = word;
             cmd->u.word[array_index] = NULL;
+			
         }
         else if( current_char == ' ' || current_char == '\t') { continue; }
         else if( current_char == '#' ) { ignore_comment(s, p, size); }
@@ -488,6 +510,33 @@ command_t create_simple_command(char *s, int *p, const int size)
                 fprintf(stderr, "Line %d: No where to input.\n", line_num);
                 exit(1);
             }
+			
+			int file_ndx = file_index(file_list, cmd->input);
+			if(file_ndx == -1){ // The input file is NOT in the list
+				num_file++;
+				//printf("num_tree: %d\tnum_file: %d \n", num_tree, num_file);
+				file_list = (char**) checked_realloc(file_list, sizeof(char*)*num_file);
+				file_list[num_file-1] = cmd->input;
+				int k;
+				for(k=0; k<=num_tree; k++){ 
+					// The dependency_list is already constructed
+					dependency_list[k] = (struct dependency*) checked_realloc(dependency_list[k], sizeof(struct dependency)*num_file);
+					dependency_list[k][num_file-1].input = 0;
+					dependency_list[k][num_file-1].output = 0;
+				}
+				dependency_list[num_tree][num_file-1].input = READ;
+				//printf("dependency_list[%d][%d].input = %d\n", num_tree, num_file-1, dependency_list[num_tree][num_file-1].input );
+				//printf("dependency_list[%d][%d].output = %d\n", num_tree, num_file-1, dependency_list[num_tree][num_file-1].output );
+			
+			} else { // The input file is in the list
+				//printf("num_tree: %d, num_file: %d \n", num_tree, num_file);
+				dependency_list[num_tree][file_ndx].input = READ;
+			}
+			/*
+			int k=0;
+			for(k=0; k<num_file; k++){
+				printf("file_list[%d]:\t%s\n", k, file_list[k]);
+			}*/
         }
         else if( current_char == '>' )
         {
@@ -503,6 +552,32 @@ command_t create_simple_command(char *s, int *p, const int size)
                 fprintf(stderr, "Line %d: No where to output.\n", line_num);
                 exit(1);
             }
+			
+			int file_ndx = file_index(file_list, cmd->output);
+			if(file_ndx == -1){ // The output file is NOT in the list
+				num_file++;
+				//printf("num_tree: %d\tnum_file: %d \n", num_tree, num_file);
+				file_list = (char**) checked_realloc(file_list, sizeof(char*)*num_file);
+				file_list[num_file-1] = cmd->output;
+				int k;
+				for(k=0; k<=num_tree; k++){ 
+					dependency_list[k] = (struct dependency*) checked_realloc(dependency_list[k], sizeof(struct dependency)*num_file);
+					dependency_list[k][num_file-1].input = 0;
+					dependency_list[k][num_file-1].output = 0;
+				}
+				dependency_list[num_tree][num_file-1].output = WRITE;
+				//printf("dependency_list[%d][%d].input = %d\n", num_tree, num_file-1, dependency_list[num_tree][num_file-1].input );
+				//printf("dependency_list[%d][%d].output = %d\n", num_tree, num_file-1, dependency_list[num_tree][num_file-1].output );
+			
+			} else { // The output file is in the list
+				//printf("num_tree: %d, num_file: %d \n", num_tree, num_file);
+				dependency_list[num_tree][file_ndx].output = READ;
+			}
+				/*
+				int k=0;
+				for(k=0; k<num_tree; k++){
+					printf("%s\n", file_list[k]);
+				}*/
         }
         else if( current_char == '\n')
         {
@@ -522,6 +597,25 @@ command_t create_simple_command(char *s, int *p, const int size)
         } 
     }// end of for loop
     
+	int j;
+	for(j=1; j<array_index; j++){
+		int file_ndx = file_index(file_list, cmd->u.word[j]);
+		if(file_ndx == -1){ // The input file does NOT exists in the file_list
+			num_file++;
+			file_list = (char**) checked_realloc(file_list, sizeof(char*)*num_file);
+			file_list[num_file-1] = cmd->u.word[j];
+			int k;
+			for(k=0; k<=num_tree; k++){
+				dependency_list[k] = (struct dependency*) checked_realloc(dependency_list[k], sizeof(struct dependency)*num_file);
+				dependency_list[k][num_file-1].input = 0;
+				dependency_list[k][num_file-1].output = 0;
+			}
+			dependency_list[num_tree][num_file-1].input = READ;
+		} else { // The input exist in the file_list
+			dependency_list[num_tree][file_ndx].input = READ;
+		}
+	}
+	
     // Let p points to the last char of the SIMPLE_COMMAND
     (*p) -= 2;
     return cmd;
@@ -624,8 +718,15 @@ make_command_stream (int (*get_next_byte) (void *),
 		exit(1);
 	}
 	
+	/*if(num_tree == 0){ // Initialize a dependency list
+		dependency_list = (struct dependency**) checked_malloc(sizeof(struct dependency*));
+		dependency_list[0] = (struct dependency*) checked_malloc(sizeof(struct dependency));
+		dependency_list[0][0].input = 0;
+		dependency_list[0][0].output = 0;
+	}*/
+	
     //initiate a linked list of command trees
-    command_stream_t stream= init_command_stream();
+    command_stream_t stream = init_command_stream();
     
     int i;
     int size = (int) checked;
@@ -634,9 +735,21 @@ make_command_stream (int (*get_next_byte) (void *),
     
     for(i = 0; i < size; i++){
         //initiate a command tree
-	command_t new_command_tree=initiate_command_tree(buffer,&i,size,false);
-        
+		command_t new_command_tree=initiate_command_tree(buffer,&i,size,false);
+		
         if(new_command_tree){
+			num_tree++;
+			// Enlarge dependency_list and initialize input/output values
+			dependency_list = (struct dependency**) checked_realloc(dependency_list, sizeof(struct dependency*)*(num_tree+1));
+			dependency_list[num_tree] = (struct dependency*) checked_malloc(sizeof(struct dependency)*num_file);
+			int i;
+			for(i=0; i<num_file; i++){
+				dependency_list[num_tree][i].input = 0;
+				dependency_list[num_tree][i].output = 0;
+				//printf("dependency_list[%d][%d].input = %d\n", num_tree, i, dependency_list[num_tree][i].input );
+				//printf("dependency_list[%d][%d].output = %d\n", num_tree, i, dependency_list[num_tree][i].output );
+			}
+			
             //create a new command tree node in the linked list
             command_tree_t new_tree = (command_tree_t) checked_malloc(sizeof(struct command_tree));
 			
@@ -655,6 +768,21 @@ make_command_stream (int (*get_next_byte) (void *),
             }
         }
     }
+	
+	/*
+	int k;
+	for(k=0; k<num_tree; k++){
+		printf("file[%d]\t%s\n", k, file_list[k]);
+	}
+	for(i=0; i<num_tree; i++){
+		for(k=0; k<num_file; k++){
+			printf("%d %d\t", dependency_list[i][k].input, dependency_list[i][k].output);
+		}
+		printf("\n");
+	}
+	*/
+	
+	
     free(buffer);
     return stream;
 }
