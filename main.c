@@ -58,6 +58,7 @@ bool no_dependency(int cmd_num){
             }
         }
     }
+    return true;
 }
 
 // clear up the "traces" of a command on all files when it finishes
