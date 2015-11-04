@@ -80,6 +80,7 @@ main (int argc, char **argv)
     int command_number = 1;
     int print_tree = 0;
     int time_travel = 0;
+<<<<<<< HEAD
     int debug_regular = 0;
     int debug_expand = 0;
     program_name = argv[0];
@@ -91,6 +92,15 @@ main (int argc, char **argv)
         case 't': time_travel = 1; break;
         case 'v': debug_regular = 1; break;
         case 'x': debug_expand = 1; break;
+=======
+    program_name = argv[0];
+    
+    for (;;)
+        switch (getopt (argc, argv, "pt"))
+    {
+        case 'p': print_tree = 1; break;
+        case 't': time_travel = 1; break;
+>>>>>>> 7e0222c909b58449a516aff330d4bfb176a02108
         default: usage (); break;
         case -1: goto options_exhausted;
     }
@@ -121,11 +131,15 @@ options_exhausted:;
             else
             {
                 last_command = command;
+<<<<<<< HEAD
                 if (debug_regular) {
                     putchar('\n');
                     print_regular(command);
                 }
                 execute_command(command, time_travel, debug_expand);
+=======
+                execute_command (command, time_travel);
+>>>>>>> 7e0222c909b58449a516aff330d4bfb176a02108
             }
         }
     }
@@ -154,7 +168,11 @@ options_exhausted:;
                     // child process: executes the command
                     if(child_pid==0)
                     {
+<<<<<<< HEAD
 		        execute_command (tmp->cmd, time_travel,debug_expand);
+=======
+                        execute_command (tmp->cmd, time_travel);
+>>>>>>> 7e0222c909b58449a516aff330d4bfb176a02108
                         exit(0);
                     }
                     // parent process: collects child's pid
@@ -207,7 +225,11 @@ options_exhausted:;
     
     int i;
     for (i = 0; i < total_allocated; i++)
+<<<<<<< HEAD
         free(allocate_address[i]);
+=======
+    	free(allocate_address[i]);
+>>>>>>> 7e0222c909b58449a516aff330d4bfb176a02108
     
     return print_tree || !last_command ? 0 : command_status (last_command);
 }
