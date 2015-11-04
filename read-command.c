@@ -788,6 +788,7 @@ make_command_stream (int (*get_next_byte) (void *),
 }
 
 
+
 command_t
 read_command_stream (command_stream_t s)
 {
