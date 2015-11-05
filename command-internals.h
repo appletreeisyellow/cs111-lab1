@@ -1,5 +1,12 @@
 // UCLA CS 111 Lab 1 command internals
 
+static const char cmd_ls[] = "ls";
+static const char cmd_cat[] = "cat";
+static const char cmd_echo[] = "echo";
+static const char cmd_rm[] = "rm";
+static const char cmd_pwd[] = "pwd";
+static const char cmd_sort[] = "sort";
+
 enum command_type
 {
     AND_COMMAND,         // A && B
@@ -8,6 +15,16 @@ enum command_type
     PIPE_COMMAND,        // A | B
     SIMPLE_COMMAND,      // a simple command
     SUBSHELL_COMMAND,    // ( A )
+};
+
+enum command_name {
+	LS,
+	CAT,
+	ECHO,
+	RM,
+	PWD,
+	SORT,
+	OTHERS,
 };
 
 void* allocate_address[1000000];
