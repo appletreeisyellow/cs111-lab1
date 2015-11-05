@@ -4,51 +4,51 @@ Chunchun Ye   304-502-384
 Kexin Yu      804-316-935
 
 
-In this lab, we exploited inter (not intra) command tree parallelism.
-The dependency between files decides whether commands can run in parallel
-or not. Disable parallelism when multiple commands are accessing the file 
-and one of them is writing. 
+In this lab, we exploit inter (not intra) command tree parallelism.
+The file dependency decides whether commands can run in parallel or 
+not. Disable parallelism when multiple commands are accessing the 
+same file and one of them is writing. 
 
-There are three type of dependency:
+There are three types of dependency:
 
 	1. 	RAW  (Read-After-Write)
 		e.g. 	echo b > a.txt
-				cat a.txt
+			cat a.txt
 			
 	2. 	WAW  (Write-After-Write)	
-		e.g. 	 echo a > a.txt
-				echo b > a.txt
+		e.g. 	echo a > a.txt
+			echo b > a.txt
 
 	3.	WAR  (Write-After-Read)
 		e.g.  	cat a.txt
-				echo b > a.txt  
+			echo b > a.txt  
 
-(We can do parallelism if two commands are reading from the same file.)
+(Parallelism is allowed if multiple commands are reading from the same file.)
 
 Ways to determine Read/Write from/to a file:
 
 	Read from a file:
-    - 1st word after <
-	- All the arguments in the simple command
+    - 1st word after "<"
+    - All the arguments in the simple command
 	
 	Write to a file:
-    - 1st word after >
+    - 1st word after ">"
 	
-We have two lists to keep track of the dependency relationships between files:
+We maintain two lists to keep track of the file dependency:
 
-	file_list:  Stores the input/output files. Each file has its index number.
-				If a file is already stored in the list, no need to store it again. 
+	file_list:  	Stores input/output files. Each file has its index number.
+			If a file is already stored in the list, no need to store it again. 
 
-    dependency_list: A 2D array that graphs the dependency relationship between commands 
-					 and files. The first dimension represents the index of command 
-					 trees. The second dimension represents the index of files. We 
-					 used 1 to indicate READ, 2 to indicate WRITE, and 0 to indicate 
-					 no dependency. 
+    	dependency_list: A 2D array that stores the dependency relationship between commands 
+			and files. The first dimension represents the index of command 
+			trees. The second dimension represents the index of files. We 
+			use 1 to indicate READ, 2 to indicate WRITE, and 0 to indicate 
+			no dependency. 
 
 
 Limitations: 
-	1.	We only consider the word after > is a write type file. 
-		This lab does not consider commands, such as "cp" "diff", 
-		write to any files.  
-		
+	1.	This lab only considers the word after > as a Write-type file. 
+		It does not consider some commands that might also write to a file, 
+		such as "cp file1.txt file2.txt".
+
   
