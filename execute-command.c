@@ -1,6 +1,6 @@
 // UCLA CS 111 Lab 1 command execution
 
-#include <alloc.h>
+#include "alloc.h"
 #include "command.h"
 #include "command-internals.h"
 
@@ -9,13 +9,14 @@
 
 #include <error.h>
 #include <sys/wait.h>	// waitpid()
-#include <unistd.h>	// fork(), pipe(), execvp()
-#include <stdio.h>	// freopen()
-#include <stdlib.h>	// exit()
+#include <unistd.h>		// fork(), pipe(), execvp()
+#include <stdio.h>		// freopen()
+#include <stdlib.h>		// exit()
 #include <string.h>     // strcpy(), strcat()
 
 static int DEBUG_EXPAND;
 
+enum command_name search_man_page(command_t c);
 char* my_string(char* first, char* second);
 int command_status(command_t c);
 void execute_pipe(command_t c);
@@ -23,6 +24,31 @@ void execute(command_t c);
 void execute_sequence(command_t c);
 int execute_command_type(command_t c);
 void close_and_check(int pipe);
+
+enum command_name search_man_page(command_t c){
+	
+	// get command name
+	char* cmd_name = "";
+	cmd_name = my_string(cmd_name, c->u.word[0]);
+
+	enum command_name my_name = OTHERS;
+
+	// search man page 
+	if (strcmp(cmd_name, cmd_ls) == 0)
+		my_name = LS;
+	else if (strcmp(cmd_name, cmd_cat) == 0)
+		my_name = CAT;
+	else if (strcmp(cmd_name, cmd_echo) == 0)
+		my_name = ECHO;
+	else if (strcmp(cmd_name, cmd_rm) == 0)
+		my_name = RM;
+	else if (strcmp(cmd_name, cmd_pwd) == 0)
+		my_name = PWD;
+	else if (strcmp(cmd_name, cmd_sort) == 0)
+		my_name = SORT;
+
+	return my_name;
+}
 
 
 char* my_string(char* first, char* second)
@@ -111,7 +137,53 @@ void execute_pipe(command_t c)
 void execute(command_t c)
 {
     pid_t cpid;
-    
+
+	if (c->input || c->output) {
+		if (DEBUG_EXPAND) {
+			char* cmd = "";
+			int i = 0;
+			while (c->u.word[i])
+			{
+				cmd = my_string(cmd, " ");
+				cmd = my_string(cmd, c->u.word[i]);
+				i++;
+			}
+
+			if (c->input)
+			{
+				cmd = my_string(cmd, " < ");
+				cmd = my_string(cmd, c->input);
+			}
+			else if(c->output)
+			{
+				cmd = my_string(cmd, " > ");
+				cmd = my_string(cmd, c->output);
+			}
+
+			enum command_name my_name = search_man_page(c);
+
+			// add man page
+			switch (my_name) {
+			case LS:
+				cmd = my_string(cmd, " (command info: list directory contents)");break;
+			case CAT:
+				cmd = my_string(cmd, " (command info: concatenate files and print on the standard output)");break;
+			case ECHO:
+				cmd = my_string(cmd, " (command info: display a line of text)");break;
+			case RM:
+				cmd = my_string(cmd, " (command info: remove files or directories)");break;
+			case PWD:
+				cmd = my_string(cmd, " (command info: print name of current/working directory)");break;
+			case SORT:
+				cmd = my_string(cmd, " (command info: sort lines of text files)");break;
+			case OTHERS:
+				cmd = my_string(cmd, " (please try the manual page for more into...)");break;
+			}
+
+			printf("+%s\n", cmd);
+		}
+	}
+
     if((cpid=fork()) == -1)
     {
         fprintf(stderr, "ERROR: Filed to create a new process.\n");
@@ -132,19 +204,39 @@ void execute(command_t c)
             }
         }
         
-        if (DEBUG_EXPAND)
-        {
-            char* cmd = "";
-            int i = 0;
-            while (c->u.word[i])
-            {
-                cmd = my_string(cmd, " ");
-                cmd = my_string(cmd, c->u.word[i]);
-                i++;
-            }
-            fprintf(stderr, "+%s\n", cmd);
-        }
-        
+		if (DEBUG_EXPAND) {
+			char* cmd = "";
+			int i = 0;
+			while (c->u.word[i])
+			{
+				cmd = my_string(cmd, " ");
+				cmd = my_string(cmd, c->u.word[i]);
+				i++;
+			}
+
+			enum command_name my_name = search_man_page(c);
+
+			// add man page
+			switch (my_name) {
+			case LS:
+				cmd = my_string(cmd, " (command info: list directory contents)");break;
+			case CAT:
+				cmd = my_string(cmd, " (command info: concatenate files and print on the standard output)");break;
+			case ECHO:
+				cmd = my_string(cmd, " (command info: display a line of text)");break;
+			case RM:
+				cmd = my_string(cmd, " (command info: remove files or directories)");break;
+			case PWD:
+				cmd = my_string(cmd, " (command info: print name of current/working directory)");break;
+			case SORT:
+				cmd = my_string(cmd, " (command info: sort lines of text files)");break;
+			case OTHERS:
+				cmd = my_string(cmd, " (please try the manual page for more into...)");break;
+			}
+
+			printf("+%s\n", cmd);
+		}
+
         if(execvp(c->u.word[0], c->u.word) < 0){
             fprintf(stderr, "ERROR: Failed to execute the command.\n");
             exit(1);
@@ -247,5 +339,5 @@ void
 execute_command (command_t c, int time_travel,int debug_expand)
 {
     DEBUG_EXPAND=debug_expand;
-    execute_command_type(c);
+	execute_command_type(c);
 }
