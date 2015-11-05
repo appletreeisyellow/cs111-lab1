@@ -154,7 +154,7 @@ options_exhausted:;
                     // child process: executes the command
                     if(child_pid==0)
                     {
-		        execute_command (tmp->cmd, time_travel,debug_expand);
+                        execute_command (tmp->cmd, time_travel, debug_expand);
                         exit(0);
                     }
                     // parent process: collects child's pid
