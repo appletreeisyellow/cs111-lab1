@@ -571,7 +571,7 @@ command_t create_simple_command(char *s, int *p, const int size)
                 
             } else { // The output file is in the list
                 //printf("num_tree: %d, num_file: %d \n", num_tree, num_file);
-                dependency_list[num_tree][file_ndx].output = READ;
+                dependency_list[num_tree][file_ndx].output = WRITE;
             }
             /*
              int k=0;
