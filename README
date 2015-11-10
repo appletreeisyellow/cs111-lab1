@@ -21,26 +21,26 @@ Examples:
 Shell script in mytest.sh:
 echo hello && pwd # -v option can print out comments 
 
-----------------------------------------------------------
+--------------------------------------------------------------
 case 1 (regular):
 $ ./timetrash mytest.sh
 hello
 /w/home.06/class/classkex/111/lab1design
-----------------------------------------------------------
+--------------------------------------------------------------
 
-----------------------------------------------------------
+--------------------------------------------------------------
 case 2 (-v option):
 $ ./timetrash -v mytest.sh
 echo hello && pwd -v option can print out comments
 hello
 /w/home.06/class/classkex/111/lab1design
-----------------------------------------------------------
+--------------------------------------------------------------
 
-----------------------------------------------------------
+--------------------------------------------------------------
 case (-x option):
 $ ./timetrash -x mytest.sh
 + echo hello (command info: display a line of text)
 hello
 + pwd (command info: print name of current/working directory)
 /w/home.06/class/classkex/111/lab1design
-----------------------------------------------------------
+--------------------------------------------------------------
