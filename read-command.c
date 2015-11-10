@@ -23,6 +23,9 @@ int line_num;
 //keep track of allocated memory, to be freed in main.c
 extern void* allocate_address[1000000];
 extern int total_allocated;
+extern int v_enable; // indicate if is in v option mode. 
+					 // deal with #...
+					 // this value is initialized in main.c
 
 //keep track of '('
 int operatorStack;
@@ -123,11 +126,7 @@ char* find_next_word(char *s, int *p, const int size)
     char *word;
     
     // Escape space, tab, and comments until p points to the next ordinary word
-    while( (s[*p] == ' ' || s[*p] == '\t' || s[*p] == '#') && (*p < size) ){
-        if( s[*p] == '#')
-        {
-            ignore_comment(s, p, size);
-        }
+    while( (s[*p] == ' ' || s[*p] == '\t' ) && (*p < size) ){
         (*p)++;
     }
     
@@ -140,7 +139,7 @@ char* find_next_word(char *s, int *p, const int size)
     
     word_len = (*p) - begining;
     if( isSpecial(s[*p]) || s[*p] == '<' || s[*p] == '>' ||
-       s[*p] == '\n' || s[*p] == '#')
+       s[*p] == '\n' || s[*p] == '#' || s[*p] == ' ')
     {
         (*p)--;
     }
@@ -190,6 +189,8 @@ char* get_comment(char *s, int *p, const int size)
         word[i] = s[beginning+i];
     
     word[char_count] = '\0';
+	(*p)--; // make p points to the last char of the command
+	//printf("debug:    %c\n", s[*p]);
     return word;
 }
 
@@ -225,13 +226,18 @@ command_tree_t get_head(command_stream_t s){
     return NULL;
 }
 
+command_t create_comment_command(char *s, int *p, const int size){
+	command_t cmd = initiate_command(COMMENT_COMMAND);
+	cmd->comment = get_comment(s, p, size);
+	return cmd;
+}
 
 command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)//Kexin
 {
     //start with the leftmost command in the tree
     command_t left = NULL;
     char* tmp_comment = NULL;
-    
+	
     for(; *p<size; (*p)++){
         char current_char = s[*p];
         
@@ -296,7 +302,22 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
         }
         //simple command
         else if(isWord(current_char)){
-            left=create_simple_command(s,p,size);
+            left = create_simple_command(s,p,size);
+        }
+		// comment
+		else if(current_char=='#'){
+			if(v_enable){ // make the comment in an individual tree
+				if(!left){ // no other command is before #...
+					left = create_comment_command(s, p, size);
+					left->my_line_number = line_num;
+					return left;
+				}
+				//get comments from "#..."
+				tmp_comment= get_comment(s, p, size);
+			}
+            else{ // not in v option mode, ignore #...
+				ignore_comment(s, p, size);
+			}
         }
         //invalid expression
         else if(isInvalid(current_char)){
@@ -460,10 +481,7 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
                 exit(1);
             }
         }
-        else if(current_char=='#'){
-            //get comments from "#..."
-            tmp_comment= get_comment(s, p, size);
-        }
+        
         
     }//end of for loop
     
@@ -481,9 +499,10 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
         exit(1);
     }
     
-    if(left)
+    if(tmp_comment)
         left->comment=tmp_comment;
-    
+	
+    //printf("debug:    %s\n", left->comment);
     return left;
 }
 
@@ -497,6 +516,8 @@ command_t initiate_command(enum command_type type)
     new_cmd->status = -1;
     new_cmd->input = NULL;
     new_cmd->output = NULL;
+	new_cmd->comment = NULL;
+	new_cmd->my_line_number = 0;
     return new_cmd;
 }
 
@@ -529,7 +550,7 @@ command_t create_simple_command(char *s, int *p, const int size)
             
         }
         else if( current_char == ' ' || current_char == '\t') { continue; }
-        else if( current_char == '#' ) { break; }
+        else if( current_char == '#' ) { cmd->comment = get_comment(s, p, size);}
         else if( current_char == '<' )
         {
             if(cmd->input)
@@ -653,6 +674,9 @@ command_t create_simple_command(char *s, int *p, const int size)
     
     // Let p points to the last char of the SIMPLE_COMMAND
     (*p) -= 2;
+	
+	cmd->my_line_number = line_num;
+	
     return cmd;
 }
 
@@ -660,6 +684,7 @@ command_t create_simple_command(char *s, int *p, const int size)
 
 command_t create_special_command(char *s, int *p, const int size, enum command_type type, command_t left, bool is_in_sub_shell)//Kexin
 {
+	char* tmp_comment = NULL;
     //initiate the command
     command_t cmd = initiate_command(type);
     
@@ -712,9 +737,16 @@ command_t create_special_command(char *s, int *p, const int size, enum command_t
             exit(1);
             //added skip comment
         }
-        //ignore comments
+        //get comments
         else if(current_char == '#'){
-            ignore_comment(s, p, size);
+			if(v_enable){ // stop constructing special command string, so that we can create an individual tree for #...
+				(*p)--;
+				break;
+			}
+			else { // not in v option mode. ignore the comment
+				ignore_comment(s, p, size);
+			}
+			
         }
     }
     //no following command found
@@ -723,6 +755,7 @@ command_t create_special_command(char *s, int *p, const int size, enum command_t
         fprintf(stderr, "Line %d: There should be a following command.\n", line_num);
         exit(1);
     }
+	
     return cmd;
 }
 
