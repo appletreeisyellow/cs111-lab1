@@ -55,6 +55,7 @@ char the_next_non_space_tab_char(const char *s, int *p);
 int file_index(char** list, char* file_to_find);
 
 char* find_next_word(char *s, int *p, const int size);
+char* get_comment(char *s, int *p, const int size);
 void ignore_comment(char *s, int *p, const int size);
 
 command_stream_t init_command_stream();
@@ -107,7 +108,7 @@ int file_index(char** list, char* file_to_find){
     int i;
     for(i=0; i < num_file; i++){
         if(strcmp(list[i], file_to_find) == 0)
-            return i;
+        return i;
     }
     
     return -1; // The file is not in the list
@@ -166,6 +167,34 @@ char* find_next_word(char *s, int *p, const int size)
 }
 
 
+char* get_comment(char *s, int *p, const int size)
+{
+    char *word;
+    int char_count=0;
+    int beginning=*p;
+    
+    //find the next new line
+    for(;*p<size; (*p)++){
+        if(s[*p] == '\n')
+            break;
+        char_count++;
+    }
+    
+    word = (char*) checked_malloc((char_count + 1) * sizeof(char) );
+    allocate_address[total_allocated] = word;
+    total_allocated++;
+    
+    // Copy the string of char into word
+    int i;
+    for(i = 0; i < char_count; i++)
+        word[i] = s[beginning+i];
+    
+    word[char_count] = '\0';
+    return word;
+}
+
+
+
 void ignore_comment(char *s, int *p, const int size)//Kexin
 {
     //find the next new line
@@ -201,6 +230,7 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
 {
     //start with the leftmost command in the tree
     command_t left = NULL;
+    char* tmp_comment = NULL;
     
     for(; *p<size; (*p)++){
         char current_char = s[*p];
@@ -261,7 +291,7 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
                     left=create_special_command(s, p, size, SEQUENCE_COMMAND, left, sub_shell);
                 }
                 else
-                    continue;
+                continue;
             }
         }
         //simple command
@@ -422,7 +452,7 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
             if(sub_shell){
                 operatorStack -= 1;;
                 if(operatorStack==0)
-                    return left;
+                return left;
             }
             else{
                 //unmatched
@@ -431,9 +461,10 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
             }
         }
         else if(current_char=='#'){
-            //ignore comments
-            ignore_comment(s, p, size);
+            //get comments from "#..."
+            tmp_comment= get_comment(s, p, size);
         }
+        
     }//end of for loop
     
     
@@ -449,6 +480,10 @@ command_t initiate_command_tree(char *s, int *p, const int size, bool sub_shell)
         fprintf(stderr, "Line %d: Unmatched ')' character.\n", line_num);
         exit(1);
     }
+    
+    if(left)
+        left->comment=tmp_comment;
+    
     return left;
 }
 
@@ -494,7 +529,7 @@ command_t create_simple_command(char *s, int *p, const int size)
             
         }
         else if( current_char == ' ' || current_char == '\t') { continue; }
-        else if( current_char == '#' ) { ignore_comment(s, p, size); }
+        else if( current_char == '#' ) { break; }
         else if( current_char == '<' )
         {
             if(cmd->input)
@@ -650,9 +685,9 @@ command_t create_special_command(char *s, int *p, const int size, enum command_t
         //complete the right command branch
         else if(isWord(current_char)){
             if(type == SEQUENCE_COMMAND)
-                cmd->u.command[1] = initiate_command_tree(s, p, size,is_in_sub_shell);
+            cmd->u.command[1] = initiate_command_tree(s, p, size,is_in_sub_shell);
             else
-                cmd->u.command[1] = create_simple_command(s, p, size);
+            cmd->u.command[1] = create_simple_command(s, p, size);
             
             if(type == PIPE_COMMAND && (left->type == AND_COMMAND || left->type == OR_COMMAND)){
                 return left;
