@@ -1,101 +1,46 @@
-CS 111 Lab 1b  Test Cases & Features 
+CS 111 Lab 1b Design Project
 
 Chunchun Ye   304-502-384
 Kexin Yu      804-316-935
 
----------------------------------------------------------------
-Test Case 1
-# Check SEQUENCE command type. 
-# The second part should not be executed until the first finishes.
-ls -a > foo.txt
-cat foo.txt || echo failed!
-
-Similar case:
-# Only if the execution order is correct can “CS111” be seen on the screen. 
-touch newfile.txt; echo CS111; cat newfile.txt
-
----------------------------------------------------------------
-Test Case 2
-# Check AND command type.
-# Since bar.txt does not exist, the left command fails and the right
-# command will not be executed. Outputs of “ls” will not be seen. 
-cat bar.txt && ls
-
----------------------------------------------------------------
-Test Case 3
-# Check OR command type
-# Since bar.txt does not exist, the left command fails and the right
-# command will then be tried.
-# Outputs of “ls” can be seen. 
-cat bar.txt || ls
-
----------------------------------------------------------------
-Test Case 4
-# Check PIPE command type
-# “wc” will count the number of lines in the outputs of “ls -a”
-ls -a | wc
-
----------------------------------------------------------------
-Test Case 5
-# Check SUBSHELL command type and multiple pipes within it 
-(sort < a.txt | cat b.txt - | tr A-Z a-z > c.txt
-sort -k2 d.txt - < a.txt | uniq -c > e.txt
-diff a.txt c.txt > f.txt)
-
----------------------------------------------------------------
-Test Case 6
-# Check SIMPLE command type (I/O Redirection)
-# Note that foo.txt must exist before this command is executed
-# if foo.txt does not exist, should report error
-cat < foo.txt > blah.txt
-
----------------------------------------------------------------
-Test Case 7
-# More than one '\n' is the same as one '\n' in subshell
-# Should not threat them as creating a new tree
-(echo hello
-
-echo hey)
-
----------------------------------------------------------------
-Test Case 8
-# More than one '\n' is ok after && and ||
-echo hello &&
-
-echo hey
-
----------------------------------------------------------------
-Implementation: 
-Whenever the parent process receives a command, it will call fork() to
-initiate a new child process to take care of that execution request.
-Then parent process stops runing until the waited child exits.
+New Features of timetrash
+1. Debugging in the style of Bash's -v option:
+   (1) For each command tree, Bash outputs the entire command before its execution;
+   (2) Bash also outputs comments from "#...".
+2. Debugging in the style of Bash's -x option:
+   (1) Bash outputs every single command before its execution;
+   (2) Bash provides informative description for each executed command. 
+      If the description of a command exists within our database,
+      Bash will output that corresponding description "(command info: ...)".
+      If it is not found,
+      Bash will output “(please try the manual page for more info...)”
 
 
-For each command, we check its type before its execution:
-case SIMPLE_COMMAND:
-We simply execute this command. The exit status of the this simple
-command will be returned.
 
-case PIPE_COMMAND:
-A parent process calls pipe() to create a unidirectional data channel
-that can be used for interprocess communication.
-Children call dup2() so that they can either write to the write end or
-read from the read end of the pipe.
-The exit status of the last command in the pipe will be returned. 
+Examples:
+Shell script in mytest.sh:
+echo hello && pwd # -v option can print out comments 
 
-case AND_COMMAND:
-First we check the exit status of the left command. The right command
-will not be executed if the first one fails.
+----------------------------------------------------------
+case 1 (regular):
+$ ./timetrash mytest.sh
+hello
+/w/home.06/class/classkex/111/lab1design
+----------------------------------------------------------
 
-case OR_COMMAND:
-First we check the exit status of the left command. The right command
-will not be executed if the first one succeeds.
+----------------------------------------------------------
+case 2 (-v option):
+$ ./timetrash -v mytest.sh
+echo hello && pwd -v option can print out comments
+hello
+/w/home.06/class/classkex/111/lab1design
+----------------------------------------------------------
 
-case SUBSHELL_COMMAND:
-We execute the subshell command. Its exit status will be returned.
-
-case SEQUENCE_COMMAND: 
-By calling waitpid(left, &child_status, 0) in the parent process, we
-make sure that a right command will never be executed until the left
-one finishes.  The exit status of the last command in the sequence
-will be returned.
+----------------------------------------------------------
+case (-x option):
+$ ./timetrash -x mytest.sh
++ echo hello (command info: display a line of text)
+hello
++ pwd (command info: print name of current/working directory)
+/w/home.06/class/classkex/111/lab1design
+----------------------------------------------------------
