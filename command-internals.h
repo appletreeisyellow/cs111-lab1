@@ -15,6 +15,7 @@ enum command_type
     PIPE_COMMAND,        // A | B
     SIMPLE_COMMAND,      // a simple command
     SUBSHELL_COMMAND,    // ( A )
+	COMMENT_COMMAND,	 // #...
 };
 
 enum command_name {
@@ -29,6 +30,7 @@ enum command_name {
 
 void* allocate_address[1000000];
 int total_allocated;
+int v_enable;
 
 // EXIST 0, READ 1, WRITE 2
 struct dependency{
@@ -68,6 +70,8 @@ struct command
     
     // Comments
     char* comment;
+	// Line number
+	int my_line_number;
 };
 
 struct command_tree
