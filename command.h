@@ -28,4 +28,5 @@ void execute_command (command_t, int,int);
  been executed.  Wait for the command, if it is not already finished.  */
 int command_status (command_t);
 
+/* For -v debugging option:  */
 void print_regular (command_t c);
