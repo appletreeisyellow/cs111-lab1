@@ -28,7 +28,7 @@ command_unindented_print (command_t c)
             char **w = c->u.word;
             printf ("%s",*w);
             while (*++w)
-                printf (" %s", *w);
+            printf (" %s", *w);
             break;
         }
             
@@ -43,9 +43,9 @@ command_unindented_print (command_t c)
     }
     
     if (c->input)
-        printf (" < %s", c->input);
+    printf (" < %s", c->input);
     if (c->output)
-        printf (" > %s", c->output);
+    printf (" > %s", c->output);
 }
 
 
@@ -73,7 +73,7 @@ command_indented_print (int indent, command_t c)
             char **w = c->u.word;
             printf ("%*s%s", indent, "", *w);
             while (*++w)
-                printf (" %s", *w);
+            printf (" %s", *w);
             break;
         }
             
@@ -88,9 +88,9 @@ command_indented_print (int indent, command_t c)
     }
     
     if (c->input)
-        printf ("<%s", c->input);
+    printf ("<%s", c->input);
     if (c->output)
-        printf (">%s", c->output);
+    printf (">%s", c->output);
 }
 
 void
@@ -104,5 +104,7 @@ void
 print_regular (command_t c)
 {
     command_unindented_print(c);
+    if(c->comment)
+        printf (" %s", c->comment);
     putchar ('\n');
 }
