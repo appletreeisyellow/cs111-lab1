@@ -7,6 +7,7 @@ New Features of timetrash
 1. Debugging in the style of Bash's -v option:
    (1) For each command tree, Bash outputs the entire command before its execution;
    (2) Bash also outputs comments from "#...".
+   (3) Print line number of commands
 2. Debugging in the style of Bash's -x option:
    (1) Bash outputs every single command before its execution;
    (2) Bash provides informative description for each executed command. 
