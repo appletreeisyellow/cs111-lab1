@@ -6,6 +6,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+extern int v_enable; // indicate if is in v option mode. 
+					 // deal with #...
+					 // this value is initialized in main.c
+
 static void
 command_unindented_print (command_t c)
 {
@@ -16,19 +20,38 @@ command_unindented_print (command_t c)
         case OR_COMMAND:
         case PIPE_COMMAND:
         {
-            command_unindented_print (c->u.command[0]);
-            static char const command_label[][3] = { "&&", ";", "||", "|" };
-            printf (" %s ", command_label[c->type]);
-            command_unindented_print (c->u.command[1]);
-            break;
+			if(v_enable){ // don't want to print ';' but '\n'
+				command_unindented_print (c->u.command[0]);
+				static char const command_label[][3] = { "&&", "\n", "||", "|" };
+				printf ("%s", command_label[c->type]);
+				command_unindented_print (c->u.command[1]);
+				break;
+			}
+			else{
+				command_unindented_print (c->u.command[0]);
+				static char const command_label[][3] = { "&&", ";", "||", "|" };
+				printf (" %s ", command_label[c->type]);
+				command_unindented_print (c->u.command[1]);
+				break;
+			}
+			
+            
         }
             
         case SIMPLE_COMMAND:
         {
+			if(v_enable){ // need to print line number
+				printf("(Line %d) ", c->my_line_number);
+			}
             char **w = c->u.word;
             printf ("%s",*w);
             while (*++w)
             printf (" %s", *w);
+			if(v_enable){ // need to print comment
+				if(c->comment){ 
+					printf(" %s", c->comment);
+				}
+			}
             break;
         }
             
@@ -37,6 +60,13 @@ command_unindented_print (command_t c)
             command_unindented_print (c->u.subshell_command);
             printf (")");
             break;
+		
+		case COMMENT_COMMAND:
+			if(v_enable){ // need to print line number
+				printf("(Line %d) ", c->my_line_number);
+			}
+			printf("%s\n", c->comment);
+			break;
             
         default:
             abort ();
@@ -59,21 +89,40 @@ command_indented_print (int indent, command_t c)
         case OR_COMMAND:
         case PIPE_COMMAND:
         {
-            command_indented_print (indent + 2 * (c->u.command[0]->type != c->type),
+			if(v_enable){ // don't want to print ';' but '\n'
+				command_indented_print (indent + 2 * (c->u.command[0]->type != c->type),
                                     c->u.command[0]);
-            static char const command_label[][3] = { "&&", ";", "||", "|" };
-            printf (" \\\n%*s%s\n", indent, "", command_label[c->type]);
-            command_indented_print (indent + 2 * (c->u.command[1]->type != c->type),
+				static char const command_label[][3] = { "&&", "\n", "||", "|" };
+				printf ("\\\n%*s%s\n", indent, "", command_label[c->type]);
+				command_indented_print (indent + 2 * (c->u.command[1]->type != c->type),
                                     c->u.command[1]);
-            break;
+				break;
+			}
+			else{
+				command_indented_print (indent + 2 * (c->u.command[0]->type != c->type),
+                                    c->u.command[0]);
+				static char const command_label[][3] = { "&&", ";", "||", "|" };
+				printf (" \\\n%*s%s\n", indent, "", command_label[c->type]);
+				command_indented_print (indent + 2 * (c->u.command[1]->type != c->type),
+                                    c->u.command[1]);
+				break;
+			}
         }
             
         case SIMPLE_COMMAND:
         {
+			if(v_enable){ // need to print line number
+				printf("(Line %d) ", c->my_line_number);
+			}
             char **w = c->u.word;
             printf ("%*s%s", indent, "", *w);
             while (*++w)
             printf (" %s", *w);
+			if(v_enable){ // need to print comment
+				if(c->comment){ 
+					printf(" %s", c->comment);
+				}
+			}
             break;
         }
             
@@ -82,7 +131,14 @@ command_indented_print (int indent, command_t c)
             command_indented_print (indent + 1, c->u.subshell_command);
             printf ("\n%*s)", indent, "");
             break;
-            
+        
+		case COMMENT_COMMAND:
+			if(v_enable){ // need to print line number
+				printf("(Line %d) ", c->my_line_number);
+			}
+			printf("%s\n", c->comment);
+			break;
+			
         default:
             abort ();
     }
@@ -104,7 +160,7 @@ void
 print_regular (command_t c)
 {
     command_unindented_print(c);
-    if(c->comment)
-        printf (" %s", c->comment);
+    //if(c->comment)
+    //    printf (" %s", c->comment);
     putchar ('\n');
 }
