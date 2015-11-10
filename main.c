@@ -15,6 +15,7 @@
 
 extern void* allocate_address[1000000];
 extern int total_allocated;
+extern int v_enable;
 
 static char const *program_name;
 static char const *script_name;
@@ -83,13 +84,14 @@ main (int argc, char **argv)
     int debug_regular = 0;
     int debug_expand = 0;
     program_name = argv[0];
+	v_enable = 0;
     
     for (;;)
         switch (getopt (argc, argv, "ptvx"))
     {
         case 'p': print_tree = 1; break;
         case 't': time_travel = 1; break;
-        case 'v': debug_regular = 1; break;
+        case 'v': debug_regular = 1; v_enable = 1; break;
         case 'x': debug_expand = 1; break;
         default: usage (); break;
         case -1: goto options_exhausted;
