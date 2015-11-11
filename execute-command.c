@@ -324,6 +324,9 @@ int execute_command_type(command_t c)
         case SEQUENCE_COMMAND: // return the status of the last command
             execute_sequence(c);
             break;
+            
+        default:
+            break;
     }
     return c->status;
 }
